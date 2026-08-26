@@ -50,7 +50,7 @@
                         <div class="profile-avatar-row">
                             <div class="student-avatar" id="avatarInitial">S</div>
                             <div>
-                                <h4 id="viewName">Student</h4>
+                                <h4 id="viewName">Guest Student</h4>
                                 <p id="viewDegree">Computer Science Student</p>
                             </div>
                         </div>
@@ -60,7 +60,7 @@
                         </div>
                         <div class="profile-skills-box">
                             <small>Skills:</small>
-                            <div class="skills-list" id="viewSkills">Python, JavaScript, Data Structures</div>
+                            <div class="skills-list" id="viewSkills">Python, JavaScript, Problem Solving</div>
                         </div>
                     </div>
                 </div>
@@ -119,13 +119,13 @@
             <!-- API Status Bar -->
             <div class="sidebar-footer">
                 <div class="status-indicator" id="statusIndicator">
-                    <span class="status-dot dot-yellow" id="statusDot"></span>
-                    <span id="statusText">Checking Gemini Connection...</span>
+                    <span class="status-dot dot-green" id="statusDot"></span>
+                    <span id="statusText">Senior Buddy Active</span>
                 </div>
             </div>
         </aside>
 
-        <!-- Main Chat Area -->
+        <!-- Main Content View -->
         <main class="main-content">
             <!-- Header Bar -->
             <header class="top-navbar">
@@ -136,10 +136,31 @@
                     <h1>Senior Buddy Guidance Chat</h1>
                     <p class="subtitle">Ask anything about placements, internships, skills, or college life</p>
                 </div>
-                <div class="header-actions">
-                    <button class="btn-profile-shortcut" id="headerProfileBtn">
-                        <i class="fa-solid fa-sliders"></i> Context Profile
-                    </button>
+
+                <!-- Auth Navigation Bar Actions -->
+                <div class="header-auth-container">
+                    <!-- Shown when Logged Out -->
+                    <div class="auth-logged-out" id="loggedOutNav">
+                        <button class="btn-auth-secondary" id="navLoginBtn">
+                            <i class="fa-solid fa-right-to-bracket"></i> Log In
+                        </button>
+                        <button class="btn-auth-primary" id="navSignupBtn">
+                            <i class="fa-solid fa-user-plus"></i> Sign Up
+                        </button>
+                    </div>
+
+                    <!-- Shown when Logged In -->
+                    <div class="auth-logged-in hidden" id="loggedInNav">
+                        <button class="btn-dashboard-shortcut" id="navDashboardBtn">
+                            <i class="fa-solid fa-gauge-high"></i> Dashboard
+                        </button>
+                        <button class="btn-profile-shortcut" id="headerProfileBtn">
+                            <i class="fa-solid fa-user"></i> <span id="navUserName">Student</span>
+                        </button>
+                        <button class="btn-auth-logout" id="navLogoutBtn" title="Log Out">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -150,7 +171,7 @@
                     <div class="welcome-badge">
                         <i class="fa-solid fa-sparkles"></i> Personalized AI Senior Mentor
                     </div>
-                    <h2>Hey there! I'm your Senior Buddy. 👋</h2>
+                    <h2 id="welcomeHeading">Hey there! I'm your Senior Buddy. 👋</h2>
                     <p>Think of me as your experienced upperclassman who's walked the path before. Whether you need a resume review, internship hacks, coding interview prep, or career direction, I'm here to help!</p>
                     
                     <div class="suggested-prompts-title">
@@ -220,6 +241,145 @@
                 </div>
             </footer>
         </main>
+    </div>
+
+    <!-- AUTHENTICATION MODAL (LOG IN & SIGN UP) -->
+    <div class="modal-overlay hidden" id="authModal">
+        <div class="modal-card auth-modal-card">
+            <div class="modal-header">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" id="tabLoginBtn">Log In</button>
+                    <button class="auth-tab" id="tabSignupBtn">Sign Up</button>
+                </div>
+                <button class="close-modal-btn" id="closeAuthModalBtn">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Log In Form -->
+                <form id="loginForm" class="auth-form">
+                    <h3 class="auth-title">Welcome Back to Senior Buddy! 👋</h3>
+                    <p class="auth-desc">Log in to access your persistent student profile, saved chat history, and career advice.</p>
+                    
+                    <div class="form-group">
+                        <label for="loginEmail">Email Address</label>
+                        <input type="email" id="loginEmail" placeholder="student@university.edu" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" placeholder="••••••••" required>
+                    </div>
+
+                    <button type="submit" class="btn-primary btn-block">
+                        <i class="fa-solid fa-right-to-bracket"></i> Log In to Senior Buddy
+                    </button>
+                </form>
+
+                <!-- Sign Up Form -->
+                <form id="signupForm" class="auth-form hidden">
+                    <h3 class="auth-title">Create Your Student Account 🚀</h3>
+                    <p class="auth-desc">Sign up to get personalized mentorship tailored to your degree, skills, and target goals.</p>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="signupName">Full Name</label>
+                            <input type="text" id="signupName" placeholder="e.g. Alex Johnson" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="signupEmail">Email Address</label>
+                            <input type="email" id="signupEmail" placeholder="student@university.edu" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="signupPassword">Password (min 6 characters)</label>
+                        <input type="password" id="signupPassword" placeholder="••••••••" minlength="6" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="signupDegree">Degree / Major</label>
+                            <input type="text" id="signupDegree" placeholder="e.g. B.Tech Computer Science" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="signupYear">Year of Study</label>
+                            <select id="signupYear">
+                                <option value="1st Year">1st Year</option>
+                                <option value="2nd Year">2nd Year</option>
+                                <option value="3rd Year" selected>3rd Year</option>
+                                <option value="4th Year / Senior">4th Year / Senior</option>
+                                <option value="Postgraduate / Masters">Postgraduate / Masters</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="signupTargetRole">Target Role / Goal</label>
+                        <input type="text" id="signupTargetRole" placeholder="e.g. Software Engineer, Data Scientist">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="signupSkills">Key Skills (comma separated)</label>
+                        <input type="text" id="signupSkills" placeholder="e.g. Python, React, SQL, Problem Solving">
+                    </div>
+
+                    <button type="submit" class="btn-primary btn-block">
+                        <i class="fa-solid fa-user-plus"></i> Create Account & Start Mentorship
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- STUDENT DASHBOARD MODAL -->
+    <div class="modal-overlay hidden" id="dashboardModal">
+        <div class="modal-card dashboard-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-gauge-high"></i> Student Career Dashboard</h3>
+                <button class="close-modal-btn" id="closeDashboardModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="dashboard-hero">
+                    <div class="dash-avatar" id="dashAvatar">A</div>
+                    <div class="dash-welcome">
+                        <h2 id="dashStudentName">Welcome Back, Student!</h2>
+                        <p id="dashStudentMeta">B.Tech Computer Science | 3rd Year</p>
+                    </div>
+                </div>
+
+                <div class="dash-stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon icon-purple"><i class="fa-solid fa-comments"></i></div>
+                        <div class="stat-info">
+                            <h4 id="dashChatCount">0</h4>
+                            <p>Mentorship Messages</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon icon-blue"><i class="fa-solid fa-bullseye"></i></div>
+                        <div class="stat-info">
+                            <h4 id="dashTargetRole">Software Engineer</h4>
+                            <p>Target Career Goal</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon icon-green"><i class="fa-solid fa-code"></i></div>
+                        <div class="stat-info">
+                            <h4 id="dashSkillsCount">Python, React</h4>
+                            <p>Primary Skills</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-actions">
+                    <button class="btn-primary" id="dashEditProfileBtn">
+                        <i class="fa-solid fa-user-gear"></i> Update Profile Details
+                    </button>
+                    <button class="btn-secondary" id="dashStartChatBtn">
+                        <i class="fa-solid fa-comment-dots"></i> Continue AI Conversation
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Student Profile Edit Modal -->

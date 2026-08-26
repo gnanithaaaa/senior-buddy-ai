@@ -1,19 +1,78 @@
 import os
+import sqlite3
 import logging
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 
-# Load environment variables from .env if present
+# Load environment variables
 load_dotenv()
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
+app.secret_key = os.getenv("SECRET_KEY", "senior-buddy-secret-key-2026-production-safe")
 CORS(app)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- System Prompt Builder ---
+DB_PATH = os.path.join(os.path.dirname(__file__), 'senior_buddy.db')
+
+# --- Database Initialization ---
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Users Table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                name TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Profiles Table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS profiles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER UNIQUE NOT NULL,
+                degree TEXT,
+                year TEXT,
+                target_role TEXT,
+                skills TEXT,
+                interests TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            )
+        ''')
+
+        # Chat Messages Table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                sender TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            )
+        ''')
+        conn.commit()
+        logger.info("Database initialized successfully.")
+
+# Run DB initialization on startup
+init_db()
+
+
+# --- System Prompt Generator ---
 def build_system_prompt(profile: dict = None, action_type: str = None) -> str:
     prompt = (
         "You are 'Senior Buddy' — an experienced, smart, encouraging, and highly approachable "
@@ -76,7 +135,7 @@ def build_system_prompt(profile: dict = None, action_type: str = None) -> str:
     return prompt
 
 
-# --- Smart Senior Buddy Demo Fallback Generator ---
+# --- Smart Demo Fallback Generator ---
 def generate_demo_fallback_response(user_message: str, profile: dict = None, action_type: str = None) -> str:
     name = (profile.get('name') if profile else '') or 'there'
     degree = (profile.get('degree') if profile else '') or 'your degree'
@@ -92,7 +151,6 @@ def generate_demo_fallback_response(user_message: str, profile: dict = None, act
         "To enable live dynamic Gemini AI responses, configure `GEMINI_API_KEY` in your environment variables.*"
     )
 
-    # 1. Resume / Portfolio Help
     if action_type == "resume_help" or any(k in msg_lower for k in ["resume", "cv", "portfolio", "bullet", "project"]):
         return (
             f"### 📄 Senior Buddy's Resume & Portfolio Blueprint for {name}\n\n"
@@ -117,8 +175,6 @@ def generate_demo_fallback_response(user_message: str, profile: dict = None, act
             f"- Host live working demos and clear GitHub `README.md` files for every project!"
             + footer_note
         )
-
-    # 2. Interview Preparation
     elif action_type == "interview_prep" or any(k in msg_lower for k in ["interview", "star", "behavioral", "coding", "technical"]):
         return (
             f"### 💼 Technical & Behavioral Interview Master Guide for {name}\n\n"
@@ -140,8 +196,6 @@ def generate_demo_fallback_response(user_message: str, profile: dict = None, act
             f"- *'What onboarding or mentorship structure is provided to help new hires succeed?'*"
             + footer_note
         )
-
-    # 3. Internship Strategy & Cold Emails
     elif action_type == "internship_advice" or any(k in msg_lower for k in ["internship", "intern", "cold email", "linkedin", "apply", "job"]):
         return (
             f"### 🚀 Internship Acquisition & Cold Outreach Strategy for {name}\n\n"
@@ -166,8 +220,6 @@ def generate_demo_fallback_response(user_message: str, profile: dict = None, act
             f"3. **Build 1 High-Quality Full-Stack Project**: Deploy it live so recruiters can test it immediately."
             + footer_note
         )
-
-    # 4. Career Guidance / General Roadmap
     else:
         return (
             f"### 🎯 Personal Career Roadmap for {name}\n\n"
@@ -190,19 +242,14 @@ def generate_demo_fallback_response(user_message: str, profile: dict = None, act
         )
 
 
-# --- Gemini API Call Handler ---
 def generate_gemini_response(user_message: str, profile: dict = None, history: list = None, action_type: str = None) -> str:
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    
-    # If key is missing or is template placeholder, use Smart Fallback Demo Engine
     if not api_key or api_key == "your_gemini_api_key_here":
-        logger.info("GEMINI_API_KEY is not configured. Utilizing Smart Senior Buddy Fallback Engine.")
         return generate_demo_fallback_response(user_message, profile, action_type)
 
     system_prompt = build_system_prompt(profile, action_type)
     full_prompt = f"{system_prompt}\n\nUser Question: {user_message}"
 
-    # Attempt 1: google.genai SDK
     try:
         from google import genai
         from google.genai import types
@@ -241,7 +288,6 @@ def generate_gemini_response(user_message: str, profile: dict = None, history: l
     except Exception as e1:
         logger.warning(f"google.genai SDK call error/fallback: {e1}")
 
-    # Attempt 2: google.generativeai SDK fallback
     try:
         import google.generativeai as genai_legacy
         genai_legacy.configure(api_key=api_key)
@@ -252,10 +298,10 @@ def generate_gemini_response(user_message: str, profile: dict = None, history: l
     except Exception as e2:
         logger.warning(f"google.generativeai legacy SDK fallback error: {e2}")
 
-    # Final Graceful Fallback if API call fails or quota exhausted
-    logger.info("API call failed or quota exceeded. Serving Smart Fallback response.")
     return generate_demo_fallback_response(user_message, profile, action_type)
 
+
+# --- Authentication & User API Endpoints ---
 
 @app.route('/')
 def index():
@@ -271,8 +317,215 @@ def health_check():
         "app": "Senior Buddy AI",
         "has_api_key": has_key,
         "mode": "live_gemini" if has_key else "demo_fallback",
-        "message": "Senior Buddy server is running smoothly in Live Gemini AI mode." if has_key else "Senior Buddy server is running smoothly in Demo Mentor Mode."
+        "user_logged_in": 'user_id' in session
     })
+
+
+@app.route('/api/auth/signup', methods=['POST'])
+def signup():
+    try:
+        data = request.get_json() or {}
+        name = data.get('name', '').strip()
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '').strip()
+        degree = data.get('degree', 'Computer Science').strip()
+        year = data.get('year', '3rd Year').strip()
+        target_role = data.get('target_role', 'Software Engineer').strip()
+        skills = data.get('skills', 'Python, Problem Solving').strip()
+        interests = data.get('interests', 'Software Development').strip()
+
+        if not name or not email or not password:
+            return jsonify({"success": False, "error": "Name, email, and password are required."}), 400
+
+        if len(password) < 6:
+            return jsonify({"success": False, "error": "Password must be at least 6 characters long."}), 400
+
+        hashed_password = generate_password_hash(password)
+
+        with get_db() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute(
+                    "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+                    (name, email, hashed_password)
+                )
+                user_id = cursor.lastrowid
+
+                cursor.execute(
+                    "INSERT INTO profiles (user_id, degree, year, target_role, skills, interests) VALUES (?, ?, ?, ?, ?, ?)",
+                    (user_id, degree, year, target_role, skills, interests)
+                )
+                conn.commit()
+            except sqlite3.IntegrityError:
+                return jsonify({"success": False, "error": "An account with this email already exists."}), 400
+
+        session['user_id'] = user_id
+        session.permanent = True
+
+        return jsonify({
+            "success": True,
+            "user": {
+                "id": user_id,
+                "name": name,
+                "email": email,
+                "profile": {
+                    "degree": degree,
+                    "year": year,
+                    "target_role": target_role,
+                    "skills": skills,
+                    "interests": interests
+                }
+            }
+        })
+    except Exception as e:
+        logger.error(f"Signup error: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Sign up failed. Please try again."}), 500
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    try:
+        data = request.get_json() or {}
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '').strip()
+
+        if not email or not password:
+            return jsonify({"success": False, "error": "Email and password are required."}), 400
+
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+            user = cursor.fetchone()
+
+            if not user or not check_password_hash(user['password_hash'], password):
+                return jsonify({"success": False, "error": "Invalid email or password."}), 401
+
+            user_id = user['id']
+            cursor.execute("SELECT * FROM profiles WHERE user_id = ?", (user_id,))
+            profile = cursor.fetchone()
+
+        session['user_id'] = user_id
+        session.permanent = True
+
+        profile_data = {
+            "degree": profile['degree'] if profile else "Computer Science",
+            "year": profile['year'] if profile else "3rd Year",
+            "target_role": profile['target_role'] if profile else "Software Engineer",
+            "skills": profile['skills'] if profile else "",
+            "interests": profile['interests'] if profile else ""
+        } if profile else {}
+
+        return jsonify({
+            "success": True,
+            "user": {
+                "id": user['id'],
+                "name": user['name'],
+                "email": user['email'],
+                "profile": profile_data
+            }
+        })
+    except Exception as e:
+        logger.error(f"Login error: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Login failed. Please try again."}), 500
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({"success": True, "message": "Logged out successfully."})
+
+
+@app.route('/api/auth/me', methods=['GET'])
+def get_current_user():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"authenticated": False})
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, email FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+
+        if not user:
+            session.clear()
+            return jsonify({"authenticated": False})
+
+        cursor.execute("SELECT degree, year, target_role, skills, interests FROM profiles WHERE user_id = ?", (user_id,))
+        profile = cursor.fetchone()
+
+        cursor.execute("SELECT COUNT(*) as msg_count FROM chat_messages WHERE user_id = ?", (user_id,))
+        stats = cursor.fetchone()
+
+    profile_data = dict(profile) if profile else {}
+
+    return jsonify({
+        "authenticated": True,
+        "user": {
+            "id": user['id'],
+            "name": user['name'],
+            "email": user['email'],
+            "profile": profile_data,
+            "total_chats": stats['msg_count'] if stats else 0
+        }
+    })
+
+
+@app.route('/api/profile/update', methods=['POST'])
+def update_profile():
+    user_id = session.get('user_id')
+    data = request.get_json() or {}
+
+    name = data.get('name', '').strip()
+    degree = data.get('degree', '').strip()
+    year = data.get('year', '').strip()
+    target_role = data.get('target_role', '').strip()
+    skills = data.get('skills', '').strip()
+    interests = data.get('interests', '').strip()
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        if user_id:
+            if name:
+                cursor.execute("UPDATE users SET name = ? WHERE id = ?", (name, user_id))
+
+            cursor.execute('''
+                INSERT INTO profiles (user_id, degree, year, target_role, skills, interests)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    degree=excluded.degree,
+                    year=excluded.year,
+                    target_role=excluded.target_role,
+                    skills=excluded.skills,
+                    interests=excluded.interests,
+                    updated_at=CURRENT_TIMESTAMP
+            ''', (user_id, degree, year, target_role, skills, interests))
+            conn.commit()
+
+    return jsonify({"success": True, "message": "Profile updated successfully."})
+
+
+@app.route('/api/history', methods=['GET', 'DELETE'])
+def manage_history():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"success": True, "messages": []})
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        if request.method == 'DELETE':
+            cursor.execute("DELETE FROM chat_messages WHERE user_id = ?", (user_id,))
+            conn.commit()
+            return jsonify({"success": True, "message": "History cleared."})
+
+        cursor.execute(
+            "SELECT sender, content, created_at FROM chat_messages WHERE user_id = ? ORDER BY id ASC",
+            (user_id,)
+        )
+        rows = cursor.fetchall()
+        messages = [{"sender": row['sender'], "content": row['content'], "created_at": row['created_at']} for row in rows]
+        return jsonify({"success": True, "messages": messages})
 
 
 @app.route('/api/chat', methods=['POST'])
@@ -285,10 +538,7 @@ def chat():
         action_type = data.get('action_type', None)
 
         if not user_message and not action_type:
-            return jsonify({
-                "success": False,
-                "error": "Please provide a question or select a quick action."
-            }), 400
+            return jsonify({"success": False, "error": "Please provide a question or select a quick action."}), 400
 
         if not user_message and action_type:
             action_prompts = {
@@ -306,6 +556,21 @@ def chat():
             action_type=action_type
         )
 
+        # Store in DB if user is logged in
+        user_id = session.get('user_id')
+        if user_id:
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT INTO chat_messages (user_id, sender, content) VALUES (?, 'user', ?)",
+                    (user_id, user_message)
+                )
+                cursor.execute(
+                    "INSERT INTO chat_messages (user_id, sender, content) VALUES (?, 'ai', ?)",
+                    (user_id, ai_response)
+                )
+                conn.commit()
+
         return jsonify({
             "success": True,
             "response": ai_response,
@@ -314,7 +579,6 @@ def chat():
 
     except Exception as e:
         logger.error(f"Error handling chat request: {e}", exc_info=True)
-        # Always return graceful response rather than crashing UI
         fallback_msg = generate_demo_fallback_response(
             user_message=user_message if 'user_message' in locals() else "career advice",
             profile=profile if 'profile' in locals() else {},

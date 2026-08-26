@@ -2,6 +2,10 @@
 .env
 *.env
 
+# SQLite Database
+*.db
+senior_buddy.db
+
 # Python
 __pycache__/
 *.py[cod]
