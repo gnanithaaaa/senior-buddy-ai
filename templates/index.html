@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Senior Buddy | AI Career & Academic Assistant for Students</title>
+    <meta name="description" content="Senior Buddy is your personal AI mentor for college students, providing career guidance, resume feedback, interview prep, and internship advice.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Marked JS for Markdown Parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Background Animated Blobs -->
+    <div class="bg-blur blur-1"></div>
+    <div class="bg-blur blur-2"></div>
+    <div class="bg-blur blur-3"></div>
+
+    <div class="app-layout">
+        <!-- Sidebar Navigation & Profile -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand">
+                    <div class="brand-icon">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <div class="brand-text">
+                        <h2>Senior Buddy</h2>
+                        <span class="badge-tag">AI Mentor</span>
+                    </div>
+                </div>
+                <button class="mobile-close-btn" id="closeSidebarBtn" title="Close Menu">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- Profile Status Card -->
+                <div class="card profile-card" id="profileSummaryCard">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-user-graduate"></i> Student Profile</h3>
+                        <button class="btn-icon-small" id="editProfileBtn" title="Edit Profile">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                    </div>
+                    <div class="profile-details" id="profileDetailsView">
+                        <div class="profile-avatar-row">
+                            <div class="student-avatar" id="avatarInitial">S</div>
+                            <div>
+                                <h4 id="viewName">Student</h4>
+                                <p id="viewDegree">Computer Science Student</p>
+                            </div>
+                        </div>
+                        <div class="profile-tags">
+                            <span class="tag" id="viewYear"><i class="fa-solid fa-calendar"></i> 3rd Year</span>
+                            <span class="tag" id="viewRole"><i class="fa-solid fa-bullseye"></i> Aspiring Developer</span>
+                        </div>
+                        <div class="profile-skills-box">
+                            <small>Skills:</small>
+                            <div class="skills-list" id="viewSkills">Python, JavaScript, Data Structures</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Action Buttons Section -->
+                <div class="quick-actions-section">
+                    <h3><i class="fa-solid fa-bolt"></i> Quick Mentorship</h3>
+                    <div class="action-grid">
+                        <button class="action-card" data-action="career_guidance">
+                            <div class="action-icon icon-purple">
+                                <i class="fa-solid fa-compass"></i>
+                            </div>
+                            <div class="action-info">
+                                <h4>Career Guidance</h4>
+                                <p>Roadmaps, trends & skills</p>
+                            </div>
+                        </button>
+                        <button class="action-card" data-action="resume_help">
+                            <div class="action-icon icon-blue">
+                                <i class="fa-solid fa-file-lines"></i>
+                            </div>
+                            <div class="action-info">
+                                <h4>Resume Advice</h4>
+                                <p>Bullet points & portfolio</p>
+                            </div>
+                        </button>
+                        <button class="action-card" data-action="interview_prep">
+                            <div class="action-icon icon-green">
+                                <i class="fa-solid fa-user-tie"></i>
+                            </div>
+                            <div class="action-info">
+                                <h4>Interview Prep</h4>
+                                <p>Tech & STAR questions</p>
+                            </div>
+                        </button>
+                        <button class="action-card" data-action="internship_advice">
+                            <div class="action-icon icon-orange">
+                                <i class="fa-solid fa-briefcase"></i>
+                            </div>
+                            <div class="action-info">
+                                <h4>Internships</h4>
+                                <p>Cold emails & applications</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Session Tools -->
+                <div class="session-tools">
+                    <button class="btn-secondary" id="clearChatBtn">
+                        <i class="fa-solid fa-trash-can"></i> Clear Conversation
+                    </button>
+                </div>
+            </div>
+
+            <!-- API Status Bar -->
+            <div class="sidebar-footer">
+                <div class="status-indicator" id="statusIndicator">
+                    <span class="status-dot dot-yellow" id="statusDot"></span>
+                    <span id="statusText">Checking Gemini Connection...</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="top-navbar">
+                <button class="mobile-toggle-btn" id="openSidebarBtn">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div class="top-title">
+                    <h1>Senior Buddy Guidance Chat</h1>
+                    <p class="subtitle">Ask anything about placements, internships, skills, or college life</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-profile-shortcut" id="headerProfileBtn">
+                        <i class="fa-solid fa-sliders"></i> Context Profile
+                    </button>
+                </div>
+            </header>
+
+            <!-- Chat Scroll Container -->
+            <div class="chat-container" id="chatContainer">
+                <!-- Welcome Hero Card -->
+                <div class="welcome-card" id="welcomeCard">
+                    <div class="welcome-badge">
+                        <i class="fa-solid fa-sparkles"></i> Personalized AI Senior Mentor
+                    </div>
+                    <h2>Hey there! I'm your Senior Buddy. 👋</h2>
+                    <p>Think of me as your experienced upperclassman who's walked the path before. Whether you need a resume review, internship hacks, coding interview prep, or career direction, I'm here to help!</p>
+                    
+                    <div class="suggested-prompts-title">
+                        <i class="fa-solid fa-lightbulb"></i> Popular questions to get started:
+                    </div>
+                    <div class="prompt-chips">
+                        <button class="prompt-chip" data-prompt="How do I write impactful bullet points for my software engineering projects on my resume?">
+                            📄 Resume bullet points strategy
+                        </button>
+                        <button class="prompt-chip" data-prompt="What is a step-by-step roadmap to prepare for 3rd-year SDE campus placements?">
+                            🎯 Placement preparation roadmap
+                        </button>
+                        <button class="prompt-chip" data-prompt="How should I answer 'Tell me about a time you faced a technical challenge' using the STAR method?">
+                            💼 Behavioral interview STAR method
+                        </button>
+                        <button class="prompt-chip" data-prompt="Can you give me a professional cold email template to reach out to recruiters on LinkedIn?">
+                            📩 Cold email template for recruiters
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Dynamic Chat Messages rendered here -->
+                <div id="messagesList" class="messages-list"></div>
+
+                <!-- Typing Indicator -->
+                <div class="typing-indicator hidden" id="typingIndicator">
+                    <div class="avatar ai-avatar-small">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <div class="typing-bubble">
+                        <span>Senior Buddy is thinking</span>
+                        <div class="dots">
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input Footer -->
+            <footer class="input-area">
+                <form id="chatForm" class="chat-form">
+                    <div class="input-box-wrapper">
+                        <textarea 
+                            id="userInput" 
+                            placeholder="Ask Senior Buddy a question... (Press Enter to send, Shift+Enter for new line)" 
+                            rows="1" 
+                            required></textarea>
+                        <div class="input-actions">
+                            <button type="button" class="icon-btn" id="micBtn" title="Speech to text input">
+                                <i class="fa-solid fa-microphone"></i>
+                            </button>
+                            <button type="submit" class="send-btn" id="sendBtn" title="Send message">
+                                <span>Send</span>
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                <div class="quick-chip-bar">
+                    <span class="chip-label">Quick topics:</span>
+                    <button class="action-chip" data-action="career_guidance">Career Map</button>
+                    <button class="action-chip" data-action="resume_help">Resume Tips</button>
+                    <button class="action-chip" data-action="interview_prep">Interview Prep</button>
+                    <button class="action-chip" data-action="internship_advice">Internship Hacks</button>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Student Profile Edit Modal -->
+    <div class="modal-overlay hidden" id="profileModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-id-card"></i> Customize Your Student Profile</h3>
+                <button class="close-modal-btn" id="closeModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc">
+                    Senior Buddy uses your profile to tailor every answer specifically to your degree, year, and target goals!
+                </p>
+                <form id="profileForm">
+                    <div class="form-group">
+                        <label for="inputName">Full Name</label>
+                        <input type="text" id="inputName" placeholder="e.g. Alex Johnson" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="inputDegree">Degree & Major</label>
+                            <input type="text" id="inputDegree" placeholder="e.g. B.Tech Computer Science" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="inputYear">Year of Study</label>
+                            <select id="inputYear">
+                                <option value="1st Year">1st Year</option>
+                                <option value="2nd Year">2nd Year</option>
+                                <option value="3rd Year" selected>3rd Year</option>
+                                <option value="4th Year / Senior">4th Year / Senior</option>
+                                <option value="Postgraduate / Masters">Postgraduate / Masters</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="inputTargetRole">Target Role / Career Goal</label>
+                        <input type="text" id="inputTargetRole" placeholder="e.g. Full Stack Developer, Data Scientist, Product Manager">
+                    </div>
+                    <div class="form-group">
+                        <label for="inputSkills">Key Skills (comma separated)</label>
+                        <input type="text" id="inputSkills" placeholder="e.g. Python, SQL, React, Problem Solving">
+                    </div>
+                    <div class="form-group">
+                        <label for="inputInterests">Interests / Extracurriculars</label>
+                        <input type="text" id="inputInterests" placeholder="e.g. Open Source, Cloud Architecture, Hackathons">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" id="cancelModalBtn">Cancel</button>
+                        <button type="submit" class="btn-primary"><i class="fa-solid fa-check"></i> Save & Apply Profile</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
