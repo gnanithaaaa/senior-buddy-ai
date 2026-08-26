@@ -149,11 +149,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.has_api_key) {
                 statusDot.className = "status-dot dot-green";
-                statusText.textContent = "Gemini AI Active";
+                statusText.textContent = "Live Gemini AI Active";
             } else {
-                statusDot.className = "status-dot dot-yellow";
-                statusText.textContent = "API Key Missing in .env";
-                showToast("Notice: GEMINI_API_KEY is not set in .env file. Please add your key.", "error");
+                statusDot.className = "status-dot dot-green";
+                statusText.textContent = "Senior Buddy Active (Demo Mode)";
             }
         } catch (err) {
             statusDot.className = "status-dot dot-red";
@@ -161,6 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Health check error:", err);
         }
     }
+
 
     // --- Event Listeners ---
     function setupEventListeners() {
